@@ -9,6 +9,7 @@ class EarthVRSimulation {
         this.camera = null;
         this.renderer = null;
         this.earth = null;
+        this.earthNight = null;
         this.clouds = null;
         this.frameCount = 0;
         this.lastTime = performance.now();
@@ -248,69 +249,41 @@ class EarthVRSimulation {
         const dayTexture = this.createEarthTexture();
         const nightTexture = this.createNightmapTexture();
         
-        // Create custom shader material for day/night blending
-        const material = new THREE.ShaderMaterial({
-            uniforms: THREE.UniformsUtils.merge([
-                THREE.UniformsLib.common,
-                {
-                    dayTexture: { value: dayTexture },
-                    nightTexture: { value: nightTexture },
-                    lightPosition: { value: new THREE.Vector3(15, 8, 10) }
-                }
-            ]),
-            vertexShader: `
-                #include <common>
-                varying vec3 vNormal;
-                varying vec3 vWorldPos;
-                varying vec2 vUv;
-                
-                void main() {
-                    vNormal = normalize(normalMatrix * normal);
-                    vWorldPos = (modelMatrix * vec4(position, 1.0)).xyz;
-                    vUv = uv;
-                    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-                }
-            `,
-            fragmentShader: `
-                uniform sampler2D dayTexture;
-                uniform sampler2D nightTexture;
-                uniform vec3 lightPosition;
-                
-                varying vec3 vNormal;
-                varying vec3 vWorldPos;
-                varying vec2 vUv;
-                
-                void main() {
-                    // Calculate light direction in world space
-                    vec3 lightDir = normalize(lightPosition - vWorldPos);
-                    
-                    // Calculate blend factor: 0 = night side, 1 = day side
-                    float blend = clamp(dot(vNormal, lightDir) * 1.5, 0.0, 1.0);
-                    
-                    // Sample both textures
-                    vec4 dayColor = texture2D(dayTexture, vUv);
-                    vec4 nightColor = texture2D(nightTexture, vUv);
-                    
-                    // Blend: more day on lit side, more night on dark side
-                    vec4 finalColor = mix(nightColor, dayColor, blend);
-                    
-                    // Add slight glow to night side
-                    finalColor.rgb += (1.0 - blend) * 0.2 * nightColor.rgb;
-                    
-                    gl_FragColor = finalColor;
-                }
-            `,
+        // Create Day Earth material with standard lighting
+        const dayMaterial = new THREE.MeshPhongMaterial({
+            map: dayTexture,
+            shininess: 10,
+            emissive: 0x000000,
+            specular: 0x222222,
+            wireframe: false,
+            flatShading: false,
             side: THREE.FrontSide
         });
-
         
-        this.earth = new THREE.Mesh(geometry, material);
+        this.earth = new THREE.Mesh(geometry, dayMaterial);
         this.earth.receiveShadow = false;
         this.earth.castShadow = false;
         this.scene.add(this.earth);
         
+        // Create Night Earth overlay - city lights on dark side
+        const nightMaterial = new THREE.MeshPhongMaterial({
+            emissiveMap: nightTexture,
+            emissive: 0x888888,
+            emissiveIntensity: 1.5,
+            transparent: true,
+            opacity: 0.8,
+            side: THREE.FrontSide,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false
+        });
+        
+        this.earthNight = new THREE.Mesh(geometry, nightMaterial);
+        this.earthNight.position.z = 0.0001;  // Prevent z-fighting
+        this.scene.add(this.earthNight);
+        
         // Store textures and material for updates
-        this.earthMaterial = material;
+        this.dayMaterial = dayMaterial;
+        this.nightMaterial = nightMaterial;
         
         // Add atmospheric glow for realism
         this.addAtmosphericGlow();
@@ -926,6 +899,9 @@ class EarthVRSimulation {
     update() {
         if (this.earth) {
             this.earth.rotation.y += 0.001; // Earth rotates
+        }
+        if (this.earthNight) {
+            this.earthNight.rotation.y += 0.001; // Night Earth rotates with day earth
         }
         if (this.clouds) {
             this.clouds.rotation.y += 0.001; // Clouds rotate WITH Earth (same speed - physics accurate)
