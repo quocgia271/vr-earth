@@ -298,7 +298,7 @@ class EarthVRSimulation {
         const material = new THREE.MeshPhongMaterial({
             map: texture,
             transparent: true,
-            opacity: 0.25,             // Further reduced to 0.25 for transparent clouds
+            opacity: 0.15,             // Further reduced to 0.15 for very thin clouds
             emissive: 0x000000,        // NO self-illumination
             specular: 0x000000,        // No shiny reflections on clouds
             depthWrite: false,
@@ -329,7 +329,7 @@ class EarthVRSimulation {
         this.scene.add(sunLight);
         
         // Fill light - WEAKER for more contrast (dark side should be darker)
-        const fillLight = new THREE.DirectionalLight(0x87ceeb, 0.45);  // Increased to brighten night side
+        const fillLight = new THREE.DirectionalLight(0x87ceeb, 0.35);  // Reduced to further darken
         fillLight.position.set(-10, 5, -8);
         this.scene.add(fillLight);
         
