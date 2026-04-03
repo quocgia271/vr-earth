@@ -248,9 +248,9 @@ class EarthVRSimulation {
         const texture = this.createEarthTexture();
         const material = new THREE.MeshPhongMaterial({
             map: texture,
-            shininess: 25,              // Higher shininess for water reflection
+            shininess: 10,              // Reduced from 25 for less bright reflections
             emissive: 0x000000,         // NO self-illumination - use lighting only
-            specular: 0x444444,         // Specular highlights (water)
+            specular: 0x222222,         // Reduced from 0x444444 for less gloss
             wireframe: false,
             flatShading: false,         // Smooth shading
             side: THREE.FrontSide
@@ -313,7 +313,7 @@ class EarthVRSimulation {
     // Setup lighting
     createLighting() {
         // Main Sun Light - MUCH STRONGER for visible day/night contrast
-        const sunLight = new THREE.DirectionalLight(0xfffbf0, 1.5);  // Reduced to 1.5 for more detail
+        const sunLight = new THREE.DirectionalLight(0xfffbf0, 1.0);  // Reduced to 1.0 for better detail
         sunLight.position.set(15, 8, 10);
         sunLight.castShadow = true;
         sunLight.shadow.mapSize.width = 4096;
@@ -328,7 +328,7 @@ class EarthVRSimulation {
         this.scene.add(sunLight);
         
         // Fill light - WEAKER for more contrast (dark side should be darker)
-        const fillLight = new THREE.DirectionalLight(0x87ceeb, 0.3);  // Reduced from 0.6
+        const fillLight = new THREE.DirectionalLight(0x87ceeb, 0.45);  // Increased to brighten night side
         fillLight.position.set(-10, 5, -8);
         this.scene.add(fillLight);
         
