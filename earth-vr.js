@@ -505,7 +505,7 @@ class EarthVRSimulation {
         
         // ✨ THAY ĐỔI 1: BÁN KÍNH NHỎ LẠI
         // Giảm bán kính từ 3.0 xuống 1.8 để quầng sáng gọn gàng, ôm sát lõi (1.5)
-        const glowGeometry = new THREE.IcosahedronGeometry(1.8, 64);
+        const glowGeometry = new THREE.IcosahedronGeometry(3.2, 64);
         
         const glowMaterial = new THREE.ShaderMaterial({
             uniforms: this.sunUniforms,
