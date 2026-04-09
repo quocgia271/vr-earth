@@ -104,6 +104,8 @@ class EarthVRSimulation {
             if (this.earth) this.universeGroup.add(this.earth);
             if (this.clouds) this.universeGroup.add(this.clouds);
             if (this.sun) this.universeGroup.add(this.sun); // Dùng this.sun thay vì sunCore
+            // Bổ sung: Cho ánh sáng chính vào Group để khi kéo/xoay, hướng sáng cũng xoay theo
+            if (this.mainDirectionalLight) this.universeGroup.add(this.mainDirectionalLight);
 
             // Đặt toàn bộ hệ thống lên ngang tầm mắt (cao 1.5m, lùi ra xa 2.5m)
             this.universeGroup.position.set(0, 1.5, -2.5);
@@ -281,13 +283,18 @@ class EarthVRSimulation {
             flatShading: false,
             side: THREE.FrontSide
         });
-
+        // 1. Tạo biến lưu trữ Uniforms ở cấp độ class (để dùng trong hàm update)
+        this.earthUniforms = {
+            sunPosition: { value: new THREE.Vector3(15, 8, 10).normalize() }
+        };
         // =========================================================
         // ✨ ĐOẠN CODE SHADER XỬ LÝ CHUYỂN NGÀY/ĐÊM VÀ LỌC NỀN ✨
         // =========================================================
-        dayMaterial.onBeforeCompile = function(shader) {
-            // Khai báo vị trí Mặt Trời giống hệt với file createLighting()
-            shader.uniforms.sunPosition = { value: new THREE.Vector3(15, 8, 10).normalize() };
+       // ✨ ĐOẠN CODE SHADER XỬ LÝ CHUYỂN NGÀY/ĐÊM VÀ LỌC NỀN ✨
+        // =========================================================
+        dayMaterial.onBeforeCompile = (shader) => { // <--- SỬA function(shader) THÀNH (shader) =>
+            // Trỏ uniform của shader vào biến chúng ta vừa tạo
+            shader.uniforms.sunPosition = this.earthUniforms.sunPosition;
             
             // Truyền Vector pháp tuyến bề mặt (world normal) sang Fragment Shader
             shader.vertexShader = `
@@ -460,6 +467,8 @@ class EarthVRSimulation {
         this.createSunVisual();
         
         console.log('✓ Professional lighting with strong day/night contrast');
+        // 2. Lưu lại đèn chiếu chính
+        this.mainDirectionalLight = sunLight;
     }
     
     // Create visual representation of the sun
@@ -560,8 +569,9 @@ class EarthVRSimulation {
         // 3. ĐÈN CHIẾU SÁNG TRÁI ĐẤT (Giữ Nguyên)
         // ==========================================
         const sunLight = new THREE.PointLight(0xffffbb, 2.5, 200); 
-        sunLight.position.copy(sunCore.position);
-        this.scene.add(sunLight);
+        // Đặt tọa độ của đèn tại (0,0,0) so với Mặt Trời và gắn thẳng vào lõi
+        sunLight.position.set(0, 0, 0); 
+        sunCore.add(sunLight);
         
         console.log('✓ 3D Sun with Compact Soft Pulsating Glow created.');
     }
@@ -1081,7 +1091,21 @@ if (this.isControllerGrabbing && this.activeController) {
         if (this.clouds) {
             this.clouds.rotation.y += 0.001; // Clouds rotate WITH Earth (same speed - physics accurate)
         }
-       
+       // Bổ sung: CẬP NHẬT HƯỚNG SÁNG CHO SHADER LIÊN TỤC
+       if (this.sun && this.earth && this.earthUniforms) {
+        const sunWorldPos = new THREE.Vector3();
+        const earthWorldPos = new THREE.Vector3();
+
+        // Lấy tọa độ tuyệt đối (World Position) hiện hành của Mặt Trời và Trái Đất
+        this.sun.getWorldPosition(sunWorldPos);
+        this.earth.getWorldPosition(earthWorldPos);
+
+        // Tính vector hướng chiếu sáng từ Trái Đất tới Mặt Trời
+        const sunDirection = new THREE.Vector3().subVectors(sunWorldPos, earthWorldPos).normalize();
+
+        // Cập nhật hướng này vào Custom Shader
+        this.earthUniforms.sunPosition.value.copy(sunDirection);
+    }
         
         // Update camera position based on mouse
         this.updateCameraPosition();
