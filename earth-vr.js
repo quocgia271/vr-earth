@@ -452,7 +452,6 @@ float sunDot = dot(normalize(vWorldNormal), sunPosition);
         // Main Sun Light - MUCH STRONGER for visible day/night contrast
         const sunLight = new THREE.DirectionalLight(0xfffbf0, 1.0);  // Reduced to 1.0 for better detail
         sunLight.position.set(15, 8, 10);
-        sunLight.castShadow = true;
         sunLight.castShadow = false;
         sunLight.shadow.mapSize.width = 4096;
         sunLight.shadow.mapSize.height = 4096;
