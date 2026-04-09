@@ -28,6 +28,10 @@ class EarthVRSimulation {
         this.tempSunPos = new THREE.Vector3();
         this.tempEarthPos = new THREE.Vector3();
         this.tempSunDir = new THREE.Vector3();
+
+        this.worldAxisX = new THREE.Vector3(1, 0, 0);
+this.worldAxisY = new THREE.Vector3(0, 1, 0);
+        
         
         this.init();
     }
@@ -62,7 +66,8 @@ class EarthVRSimulation {
                 precision: 'highp'
             });
             this.renderer.setSize(width, height);
-            this.renderer.setPixelRatio(window.devicePixelRatio);
+            // Dùng pixel ratio của thiết bị, nhưng giới hạn tối đa ở mức 1.5 để cân bằng độ nét/hiệu năng trong VR
+this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
             
             // Better shadow rendering
             this.renderer.shadowMap.enabled = true;
@@ -269,10 +274,12 @@ class EarthVRSimulation {
   createEarth() {
         // High-resolution sphere for smooth appearance
         const geometry = new THREE.IcosahedronGeometry(1, 64);
-        
+        const textureLoader = new THREE.TextureLoader();
         // Load textures
         const dayTexture = this.createEarthTexture();
         const nightTexture = this.createNightmapTexture();
+        const bumpTexture = textureLoader.load('./earth_bump.jpg');
+        const specularTexture = textureLoader.load('./earth_specular.jpg');
         
         // Create Day Earth material with night map as emissive overlay
         const dayMaterial = new THREE.MeshPhongMaterial({
@@ -280,8 +287,14 @@ class EarthVRSimulation {
             emissiveMap: nightTexture,
             emissive: 0xffffff,        
             emissiveIntensity: 1,
-            shininess: 10,
-            specular: 0x222222,
+        
+            // ✨ THÊM 3 DÒNG NÀY ĐỂ ĐỊA HÌNH GỒ GHỀ VÀ ĐẠI DƯƠNG LẤP LÁNH ✨
+            bumpMap: bumpTexture,
+            bumpScale: 0.015,          // Độ gồ ghề của núi (chỉnh từ 0.01 đến 0.05)
+            specularMap: specularTexture,
+        
+            shininess: 15, // Độ bóng của nước
+            specular: new THREE.Color(0x333333), // Màu của phản chiếu (hơi xám)
             wireframe: false,
             flatShading: false,
             side: THREE.FrontSide
@@ -325,7 +338,8 @@ class EarthVRSimulation {
                 
                 #ifdef USE_EMISSIVEMAP
                     // 1. Tính toán vùng tối (ban đêm)
-                    float sunDot = dot(normalize(vWorldNormal), normalize(sunPosition));
+                    // Bỏ normalize(sunPosition) vì nó đã được normalize từ CPU rồi
+float sunDot = dot(normalize(vWorldNormal), sunPosition);
                     
                     // 0.25: Bắt đầu bật đèn từ hoàng hôn, -0.05: Sáng 100% khi tối hẳn
                     float nightMask = 1.0 - smoothstep(-0.05, 0.25, sunDot);
@@ -390,6 +404,7 @@ class EarthVRSimulation {
         // Outer glow layer (blue atmosphere) - subtle
         const glowGeometry = new THREE.IcosahedronGeometry(1.06, 32);
         const glowMaterial = new THREE.MeshBasicMaterial({
+            depthWrite: false,
             color: 0x4499ff,
             transparent: true,
             opacity: 0.08,             // Reduced further for more visibility
@@ -401,6 +416,7 @@ class EarthVRSimulation {
         // Inner glow layer (very subtle)
         const glowGeometry2 = new THREE.IcosahedronGeometry(1.03, 32);
         const glowMaterial2 = new THREE.MeshBasicMaterial({
+            depthWrite: false,
             color: 0x2266ff,
             transparent: true,
             opacity: 0.03,             // Reduced further
@@ -437,6 +453,7 @@ class EarthVRSimulation {
         const sunLight = new THREE.DirectionalLight(0xfffbf0, 1.0);  // Reduced to 1.0 for better detail
         sunLight.position.set(15, 8, 10);
         sunLight.castShadow = true;
+        sunLight.castShadow = false;
         sunLight.shadow.mapSize.width = 4096;
         sunLight.shadow.mapSize.height = 4096;
         sunLight.shadow.camera.left = -15;
@@ -1045,15 +1062,12 @@ if (this.isControllerGrabbing && this.activeController) {
     const deltaY = currentPosition.y - this.previousControllerPosition.y;
 
     // 1. TĂNG TỐC ĐỘ XOAY DÀNH CHO KÍNH THẬT
-    // Tăng hệ số từ 5.0 lên 25.0 (Bạn có thể tăng/giảm số này tùy theo cảm giác tay)
     const rotationSpeed = 25.0;
 
-    // 2. CHỈNH LẠI HƯỚNG VUỐT
-    // Kéo trái/phải: Giữ nguyên phép CỘNG (+)
-    this.universeGroup.rotation.y += deltaX * rotationSpeed; 
-    
-    // Kéo lên/xuống: Đổi thành phép TRỪ (-) để vuốt lên xoay lên, vuốt xuống xoay xuống
-    this.universeGroup.rotation.x -= deltaY * rotationSpeed;
+    // 2. CHỈNH LẠI HƯỚNG VUỐT DÙNG TRỤC THẾ GIỚI (WORLD AXIS) VÀ TỐI ƯU RÁC BỘ NHỚ
+    // Dùng this.worldAxisY và this.worldAxisX đã khởi tạo trên constructor
+    this.universeGroup.rotateOnWorldAxis(this.worldAxisY, deltaX * rotationSpeed);
+    this.universeGroup.rotateOnWorldAxis(this.worldAxisX, -deltaY * rotationSpeed);
 
     this.previousControllerPosition.copy(currentPosition);
 }
